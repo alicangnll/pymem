@@ -10,10 +10,7 @@ if os.name == "nt":
     else:
         try:
             print("--------------- MEMORY SNAPSHOTTING PLEASE WAIT ---------------")
-            if PyMemSnapshot.get_procimg_win(str(name), 11732) is True:
-                print("--------------- MEMORY SNAPSHOTTING COMPLETED ---------------")
-            else:
-                print("--------------- MEMORY SNAPSHOTTING NOT COMPLETED ---------------")
+            PyMemSnapshot.get_memimg_win(str(name))  
         except Exception as e:
             print("FATAL ERROR : IMAGE CAN NOT GET\nREASON : " + str(e))
 else:
