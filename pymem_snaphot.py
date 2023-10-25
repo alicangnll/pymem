@@ -56,7 +56,6 @@ def dump_and_save_memory(filename):
     stat = MEMORYSTATUSEX()
     k32.GlobalMemoryStatusEx(byref(stat))
     memsize = int(stat.ullTotalPhys) # Get all memory bytes
-    create_raw_file(filename, memsize)
     device_handle = win32file.CreateFile("\\\\.\\pmem", win32file.GENERIC_READ | win32file.GENERIC_WRITE, win32file.FILE_SHARE_READ | win32file.FILE_SHARE_WRITE, None, win32file.OPEN_EXISTING, win32file.FILE_ATTRIBUTE_NORMAL, None)
     mem_addr = 0
     buf_size = 1024 * 1024
