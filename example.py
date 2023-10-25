@@ -1,5 +1,5 @@
+from pymem_class import PyMem
 
-from pymem_snaphot import PyMemSnapshot
-
-name = input("Memory image name (Ex: example.raw) : ") # Memory image name (Ex: example.raw)
-PyMemSnapshot.get_memimg_win(str(name))  
+if __name__ == "__main__":
+    PyMem.service_create()
+    PyMem.dump_and_save_memory("demo.raw")
