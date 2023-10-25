@@ -13,7 +13,7 @@
 </ul>
 <h2>Images</h2>
 <img src="pic/ftk_imager_test.png" />
-<hr>
+<br>
 <img src="pic/wintest.png" />
 <h2>Disclaimer</h2>
 <p>It should not be forgotten that taking a memory image is a serious process. In this process, you may encounter numerous errors, BSODs (Blue Screen of Death), and even memory errors. For this reason, we declare that we are not responsible for any damage that may arise.
