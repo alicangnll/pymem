@@ -29,9 +29,15 @@ class PyMem:
                 f"sc delete winpmem"
             )  # Delete any previous instance of the driver
             if ctypes.sizeof(ctypes.c_voidp) == 4:
-                driver_path = "winpmem_x86.sys"
+                if os.path.isfile("winpmem_x86.sys") is True:
+                    driver_path = "winpmem_x86.sys"
+                else:
+                    return "Driver file are not found"
             else:
-                driver_path = "winpmem_x64.sys"
+                if os.path.isfile("winpmem_x64.sys") is True:
+                    driver_path = "winpmem_x64.sys"
+                else:
+                    return "Driver file are not found"
             # Create a new instance of the driver
             cwd = os.getcwd()
             os.system(
