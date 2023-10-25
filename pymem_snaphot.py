@@ -1,5 +1,6 @@
-import os, sys
-from ctypes import WinDLL, create_string_buffer, addressof, windll, c_uint, c_ulong, c_ulonglong, Structure, sizeof, byref
+import win32file, os, ctypes
+from ctypes import *
+
 
 class MEMORYSTATUSEX(Structure):
     _fields_ = [
@@ -20,29 +21,86 @@ class MEMORYSTATUSEX(Structure):
         super(MEMORYSTATUSEX, self).__init__()
 
 
-class PyMemSnapshot:
-    def get_memimg_win(name):
+class PyMem:
+    def service_create():
         try:
-            if os.name == "nt":
-                # Check system Windows or not
-                if name == "" or name is None:
-                    # Check space chars
-                    print("FATAL ERROR : IMAGE CAN NOT GET!")
-                else: 
-                    print("--------------- PyMem Capture v1 ---------------")
-                    k32 = WinDLL('kernel32') # Import kernel32
-                    stat = MEMORYSTATUSEX()
-                    k32.GlobalMemoryStatusEx(byref(stat))
-                    size = int(stat.ullTotalPhys) # Get all memory bytes
-                    buffer = create_string_buffer(size) # Creating allocated size
-                    address = addressof(buffer) # Addressing all memory
-                    k32.ReadProcessMemory(windll.kernel32.GetCurrentProcess(), c_uint(address), buffer, c_uint(size), None) # Reading all memory
-                    print(f"Writing {size} memory image {address} to {name}...")
-                    with open(str(name), "wb") as f:
-                        f.write(buffer.raw) # Writing all memory informations to RAW file
+            os.system(f"net stop winpmem")  # Stop any previous instance of the driver
+            os.system(
+                f"sc delete winpmem"
+            )  # Delete any previous instance of the driver
+            if ctypes.sizeof(ctypes.c_voidp) == 4:
+                if os.path.isfile("winpmem_x86.sys") is True:
+                    driver_path = "winpmem_x86.sys"
+                else:
+                    return "Driver file are not found"
             else:
-                print("FATAL ERROR : OS ARE NOT SUPPORTING!")
-                sys.exit(0)
+                if os.path.isfile("winpmem_x64.sys") is True:
+                    driver_path = "winpmem_x64.sys"
+                else:
+                    return "Driver file are not found"
+            # Create a new instance of the driver
+            cwd = os.getcwd()
+            os.system(
+                'sc create winpmem type=kernel binPath="'
+                + cwd
+                + "//"
+                + driver_path
+                + '"'
+            )
+            print("WinPMEM Service Created")
+            # Start the new instance of the driver
+            os.system(f"net start winpmem")
+            print("WinPMEM Driver Created")
         except Exception as e:
-            print("FATAL ERROR : IMAGE CAN NOT GET\nREASON : " + str(e))
+            print("ERROR : WinPMEM can not created. Reason : " + str(e))
 
+    def create_raw_file(filename, memsize):
+        print("Creating RAW file")
+        k32 = WinDLL("kernel32")
+        buffer = create_string_buffer(memsize)
+        address = addressof(buffer)
+        k32.ReadProcessMemory(
+            windll.kernel32.GetCurrentProcess(),
+            c_uint(address),
+            buffer,
+            c_uint(memsize),
+            None,
+        )
+        print(f"Creating {memsize} memory RAW image {address} to {filename}...")
+        with open(str(filename), "wb") as f:
+            f.write(buffer.raw)
+        f.close()
+
+    def dump_and_save_memory(filename):
+        print("--------------- PyMem Capture v1 ---------------")
+        k32 = WinDLL("kernel32")  # Import kernel32
+        stat = MEMORYSTATUSEX()
+        k32.GlobalMemoryStatusEx(byref(stat))
+        memsize = int(stat.ullTotalPhys)  # Get all memory bytes
+        PyMem.create_raw_file(filename, memsize)
+        device_handle = win32file.CreateFile(
+            "\\\\.\\pmem",
+            win32file.GENERIC_READ | win32file.GENERIC_WRITE,
+            win32file.FILE_SHARE_READ | win32file.FILE_SHARE_WRITE,
+            None,
+            win32file.OPEN_EXISTING,
+            win32file.FILE_ATTRIBUTE_NORMAL,
+            None,
+        )
+        mem_addr = 0
+        buf_size = 1024 * 1024
+        while mem_addr < memsize:
+            win32file.SetFilePointer(device_handle, mem_addr, 0)
+            data = win32file.ReadFile(device_handle, buf_size)[1]
+            with open(filename, "wb") as f:
+                f.write(data)
+            f.close()
+            print(
+                f"Dumped {mem_addr} / {memsize} bytes ({mem_addr * 100 / memsize:.2f}%)"
+            )
+            mem_addr += buf_size
+        win32file.CloseHandle(device_handle)
+
+if __name__ == "__main__":
+    PyMem.service_create()
+    PyMem.dump_and_save_memory("demo.raw")
