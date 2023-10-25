@@ -11,3 +11,5 @@
 <ul>
   <li>Windows 11</li>
 </ul>
+<h2>Thanks</h2>
+<b>Great thanks to the <a target="_blank" href="https://github.com/Velocidex/WinPmem">Velocidex (WinPMEM)</a> team for providing drivers</b>
