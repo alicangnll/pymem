@@ -11,5 +11,12 @@
 <ul>
   <li>Windows 11</li>
 </ul>
+<h2>Disclaimer</h2>
+<p>It should not be forgotten that taking a memory image is a serious process. In this process, you may encounter numerous errors, BSODs, and even memory errors. For this reason, we declare that we are not responsible for any damage that may arise.
+
+For this reason, we recommend that you run your tests in demo environments.</p>
+<p>Unutulmamalıdır ki, bellek imajı almak ciddi bir süreçtir. Bu süreçte çok sayıda hata, BSOD ve hatta bellek hatalarıyla karşılaşabilirsiniz. Bu nedenle doğabilecek herhangi bir zarardan sorumlu olmadığımızı beyan ederiz. 
+
+Bu nedenle testlerinizi demo ortamlarda yapmanızı tavsiye ederiz.</p>
 <h2>Thanks</h2>
 <b>Great thanks to the <a target="_blank" href="https://github.com/Velocidex/WinPmem">Velocidex (WinPMEM)</a> team for providing drivers</b>
