@@ -1,5 +1,5 @@
 import psutil
-import pywintypes, os, ctypes
+import win32file, os, ctypes
 from ctypes import *
 
 class MEMORYSTATUSEX(Structure):
@@ -28,7 +28,7 @@ class PyMem:
         for process in processes:
             process_name = process.name()
             process_pid = process.pid
-            if process_name in ["System", "cmd.exe"]:
+            if process_name in ["System", "explorer.exe", "cmd.exe"]:
                 continue
             if process_pid == program_pid:
                 continue
@@ -37,7 +37,7 @@ class PyMem:
             print(f"{process_name} ({process_pid}) kapatıldı.")
         except:
             print(f"{process_name} ({process_pid}) kapatılamadı.")
-
+            
     def service_create():
         try:
             PyMem.ready()
@@ -95,20 +95,20 @@ class PyMem:
         k32.GlobalMemoryStatusEx(byref(stat))
         memsize = int(stat.ullTotalPhys)  # Get all memory bytes
         PyMem.create_raw_file(filename, memsize)
-        device_handle = pywintypes.CreateFile(
+        device_handle = win32file.CreateFile(
             "\\\\.\\pmem",
-            pywintypes.GENERIC_READ | pywintypes.GENERIC_WRITE,
-            pywintypes.FILE_SHARE_READ | pywintypes.FILE_SHARE_WRITE,
+            win32file.GENERIC_READ | win32file.GENERIC_WRITE,
+            win32file.FILE_SHARE_READ | win32file.FILE_SHARE_WRITE,
             None,
-            pywintypes.OPEN_EXISTING,
-            pywintypes.FILE_ATTRIBUTE_NORMAL,
+            win32file.OPEN_EXISTING,
+            win32file.FILE_ATTRIBUTE_NORMAL,
             None,
         )
         mem_addr = 0
         buf_size = 1024 * 1024
         while mem_addr < memsize:
-            pywintypes.SetFilePointer(device_handle, mem_addr, 0)
-            data = pywintypes.ReadFile(device_handle, buf_size)[1]
+            win32file.SetFilePointer(device_handle, mem_addr, 0)
+            data = win32file.ReadFile(device_handle, buf_size)[1]
             with open(filename, "wb") as f:
                 f.write(data)
             f.close()
@@ -116,7 +116,7 @@ class PyMem:
                 f"Dumped {mem_addr} / {memsize} bytes ({mem_addr * 100 / memsize:.2f}%)"
             )
             mem_addr += buf_size
-        pywintypes.CloseHandle(device_handle)
+        win32file.CloseHandle(device_handle)
 
 
 if __name__ == "__main__":
