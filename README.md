@@ -7,9 +7,9 @@
 <ul>
   <li>AccessData FTK Imager</li>
 </ul>
-<h2>Tested OS (Linux and macOS not supporting FOR NOW)</h2>
+<h2>Tested OS (on Virtual Machine)</h2>
 <ul>
-  <li>Windows 11</li>
+  <li>Windows 11 Build Number 22621.2283</li>
 </ul>
 <h2>Disclaimer</h2>
 <p>It should not be forgotten that taking a memory image is a serious process. In this process, you may encounter numerous errors, BSODs (Blue Screen of Death), and even memory errors. For this reason, we declare that we are not responsible for any damage that may arise.
