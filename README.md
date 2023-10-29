@@ -1,4 +1,4 @@
-# PyMemSnapshot - Get Memory Image on Windows
+# PyMem - Get Memory Image on Windows
 <h2>What is this ?</h2>
 <p>It is a software that you can take memory image from your device with Python.</p>
 <h2>How is it working ?</h2>
