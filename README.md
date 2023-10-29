@@ -15,6 +15,17 @@
 <img src="pic/ftk_imager_test.png" />
 <br>
 <img src="pic/wintest.png" />
+<h2>Installation</h2>
+<pre>
+  On CMD or PowerShell (Administrator)
+  cd pymem_current_directory
+  winget install python --source=msstore
+  OR
+  winget install python
+  python -m pip install -r requirements.txt
+  python example.py
+  NOTE : You must NEED Visual Studio C++ Libraries!!
+</pre>
 <h2>Disclaimer</h2>
 <p>It should not be forgotten that taking a memory image is a serious process. In this process, you may encounter numerous errors, BSODs (Blue Screen of Death), and even memory errors. For this reason, we declare that we are not responsible for any damage that may arise.
 
