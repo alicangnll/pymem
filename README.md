@@ -30,6 +30,9 @@
   python -m pip install -r requirements.txt
   python example.py
   NOTE : You must NEED Visual Studio C++ Libraries!!
+  OR
+  pip install pymem_snapshot (<a target="_blank" href="https://pypi.org/project/pymem-snapshot/">PyPi Link</a>)
+  python example.py
 </pre>
 <h2>Disclaimer</h2>
 <p>It should not be forgotten that taking a memory image is a serious process. In this process, you may encounter numerous errors, BSODs (Blue Screen of Death), and even memory errors. For this reason, we declare that we are not responsible for any damage that may arise.
