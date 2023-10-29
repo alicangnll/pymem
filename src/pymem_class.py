@@ -52,6 +52,6 @@ class PyMem:
             with open(filename + ".aff", "wb") as f:
                 f.write(data) # Writing to file
             f.close()
-            print(f"Dumped {mem_addr} / {memsize} bytes ({mem_addr * 100 / memsize:.2f}%)")
             mem_addr += memsize
+            print(f"Dumped {mem_addr} / {memsize} bytes ({mem_addr * 100 / memsize:.2f}%)")
         win32file.CloseHandle(device_handle)
