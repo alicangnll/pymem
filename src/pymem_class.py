@@ -12,6 +12,7 @@ def CTL_CODE(DeviceType, Function, Method, Access):
 CTRL_IOCTRL = CTL_CODE(0x22, 0x101, 3, 3)
 INFO_IOCTRL = CTL_CODE(0x22, 0x103, 3, 3)
 INFO_IOCTRL_DEPRECATED = CTL_CODE(0x22, 0x100, 3, 3)
+IOCTL_REVERSE_SEARCH_QUERY = CTL_CODE(0x22, 0x104, 3, 3)
 
 class PyMem:
 
@@ -114,7 +115,7 @@ class PyMem:
         except Exception as e:
             print("ERROR : WinPMEM can not created. Reason : " + str(e))
 
-    def dump_and_save_memory(filename):
+    def dump_and_save_memory(filename, buf_size = 1024 * 1024):
         print("Creating AFF4 (Rekall) file")
         device_handle = win32file.CreateFile(
             "\\\\.\\pmem",
@@ -130,15 +131,23 @@ class PyMem:
         memory_parameters = PyMem.MemoryParameters(device_handle)
         PyMem.GetInfo(memory_parameters, runs)
         # Write memory
-        mem_addr = 0 # Starting Memory Address
-        buf_size = 1024 * 1024
-        while mem_addr < buf_size:
-            win32file.SetFilePointer(device_handle, mem_addr, 0) # Setting pointer
-            data = win32file.ReadFile(device_handle, buf_size)[1] # Reading memory...
-            with open(filename + ".aff", "wb") as outfd:
-                outfd.write(data) # Writing to file
-            outfd.close()
-            mem_addr += buf_size
-            print(f"Dumped {mem_addr} / {buf_size} bytes ({mem_addr * 100 / buf_size:.2f}%)")
-        sys.stdout.flush()
+        with open(filename + ".aff", "wb") as outfd:
+            offset = 0
+            for start, length in runs:
+                if start > offset:
+                    print("\nPadding from 0x%X to 0x%X\n" % (offset, start))
+                    PyMem.PadWithNulls(outfd, start - offset)
+                offset = start
+                end = start + length
+                while offset < end:
+                     to_read = min(buf_size, end - offset)
+                     win32file.SetFilePointer(device_handle, offset, 0)
+                     _, data = win32file.ReadFile(device_handle, to_read)
+                     outfd.write(data)
+                     offset += to_read
+                     offset_in_mb = offset / 1024 / 1024
+                     if not offset_in_mb % 50:
+                         sys.stdout.write("\n%04dMB\t" % offset_in_mb)
+                     sys.stdout.write(".")
+                     sys.stdout.flush()
         win32file.CloseHandle(device_handle)
