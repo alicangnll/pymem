@@ -41,5 +41,7 @@ For this reason, we recommend that you run your tests in demo environments.</p>
 <p>Unutulmamalıdır ki, bellek imajı almak ciddi bir süreçtir. Bu süreçte çok sayıda hata, BSOD (Blue Screen of Death / Mavi Ekran Hataları) ve hatta bellek hatalarıyla karşılaşabilirsiniz. Bu nedenle doğabilecek herhangi bir zarardan sorumlu olmadığımızı beyan ederiz. 
 
 Bu nedenle testlerinizi demo ortamlarda yapmanızı tavsiye ederiz.</p>
+<h2>Links</h2>
+<a target="_blank" href="https://pypi.org/project/pymem-snapshot/">PyPi Link</a>
 <h2>Thanks</h2>
 <b>Great thanks to the <a target="_blank" href="https://github.com/Velocidex/WinPmem">Velocidex (WinPMEM)</a> team for providing drivers</b>
