@@ -1,0 +1,2 @@
+pyaff4
+pywin32
