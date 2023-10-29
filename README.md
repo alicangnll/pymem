@@ -19,6 +19,11 @@
 <pre>
   On CMD or PowerShell (Administrator)
   cd pymem_current_directory
+  bcdedit /set testsigning on
+  Check Memory Compression with "Get-MMAgent" command
+  Disable Memory Compression with "Disable-MMAgent -mc" command
+  Restart...
+  
   winget install python --source=msstore
   OR
   winget install python
@@ -31,6 +36,7 @@
 
 For this reason, we recommend that you run your tests in demo environments.</p>
 <p>Unutulmamalıdır ki, bellek imajı almak ciddi bir süreçtir. Bu süreçte çok sayıda hata, BSOD (Blue Screen of Death / Mavi Ekran Hataları) ve hatta bellek hatalarıyla karşılaşabilirsiniz. Bu nedenle doğabilecek herhangi bir zarardan sorumlu olmadığımızı beyan ederiz. 
+
 
 Bu nedenle testlerinizi demo ortamlarda yapmanızı tavsiye ederiz.</p>
 <h2>Thanks</h2>

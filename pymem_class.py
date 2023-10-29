@@ -1,4 +1,4 @@
-import win32file, os, ctypes
+import win32file, os, ctypes, pyaff4
 from ctypes import *
 
 class PyMem:
@@ -34,6 +34,19 @@ class PyMem:
         except Exception as e:
             print("ERROR : WinPMEM can not created. Reason : " + str(e))
 
+    def aff_to_raw(filename, chunk_size):
+        container = pyaff4.Resolver()
+        volume = container.Open(filename + ".aff")
+        stream_urn = volume.urn.Append("00000000")
+        stream = container.AFF4FactoryOpen(stream_urn)
+        with open(filename + ".raw", "wb") as f:
+            while True:
+                data = stream.Read(chunk_size)
+                if not data:
+                    break
+                f.write(data)
+        container.Close()
+
     def dump_and_save_memory(filename):
         print("Creating AFF4 (Rekall) file")
         device_handle = win32file.CreateFile(
@@ -56,3 +69,4 @@ class PyMem:
             print(f"Dumped {mem_addr} / {memsize} bytes ({mem_addr * 100 / memsize:.2f}%)")
             mem_addr += memsize
         win32file.CloseHandle(device_handle)
+        PyMem.aff_to_raw(filename, memsize)
