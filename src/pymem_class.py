@@ -74,8 +74,7 @@ class PyMem:
             mode = 3
         else:
             raise RuntimeError("Mode %s not supported" % str(modeset))
-        pack = struct.pack("I", mode)
-        win32file.DeviceIoControl(fd, CTRL_IOCTRL, pack, 0, None)
+        win32file.DeviceIoControl(fd, CTRL_IOCTRL, struct.pack("I", mode), 0, None)
         
     def PadWithNulls(buffer_size, outfd, length):
         while length > 0:
