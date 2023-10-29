@@ -1,3 +1,22 @@
+Metadata-Version: 2.1
+Name: pymem
+Version: 0.0.20
+Summary: PyMem - Memory Acquisition Tool
+Home-page: https://github.com/alicangnll/pymem
+Author: Ali Can Gönüllü
+Author-email: alicangonullu@yahoo.com
+License: Mozilla Public License 2.0
+Project-URL: Bug Report, https://github.com/alicangnll/pymem/issues/new
+Classifier: License :: OSI Approved :: Mozilla Public License 2.0
+Classifier: Intended Audience :: Developers
+Classifier: Topic :: Software Development :: Libraries :: Python Modules
+Classifier: Programming Language :: Python :: 3.8
+Classifier: Programming Language :: Python :: 3.9
+Classifier: Programming Language :: Python :: 3.10
+Classifier: Programming Language :: Python :: 3.11
+Description-Content-Type: text/markdown
+License-File: LICENSE
+
 # PyMem - Get Memory Image on Windows
 <h2>What is this ?</h2>
 <p>It is a software that you can take memory image from your device with Python.</p>

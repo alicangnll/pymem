@@ -1,0 +1,9 @@
+LICENSE
+README.md
+setup.cfg
+setup.py
+src/pymem.egg-info/PKG-INFO
+src/pymem.egg-info/SOURCES.txt
+src/pymem.egg-info/dependency_links.txt
+src/pymem.egg-info/requires.txt
+src/pymem.egg-info/top_level.txt
