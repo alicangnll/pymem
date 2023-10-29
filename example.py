@@ -1,4 +1,4 @@
-from pymem_class import PyMem
+from src.pymem_class import PyMem
 
 if __name__ == "__main__":
     PyMem.service_create()
