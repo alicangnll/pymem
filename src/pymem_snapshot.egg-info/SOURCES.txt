@@ -1,9 +1,0 @@
-LICENSE
-README.md
-setup.cfg
-setup.py
-src/pymem_snapshot.egg-info/PKG-INFO
-src/pymem_snapshot.egg-info/SOURCES.txt
-src/pymem_snapshot.egg-info/dependency_links.txt
-src/pymem_snapshot.egg-info/requires.txt
-src/pymem_snapshot.egg-info/top_level.txt
