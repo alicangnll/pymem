@@ -33,7 +33,6 @@
   winget install python
   python -m pip install -r requirements.txt
   python example.py
-  NOTE : You must NEED Visual Studio C++ Libraries!!
   OR
   pip install pymem_snapshot (<a target="_blank" href="https://pypi.org/project/pymem-snapshot/">PyPi Link</a>)
   python example.py
