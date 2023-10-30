@@ -3,7 +3,7 @@ from setuptools import setup
 
 setup(
     name="pymem_snapshot",
-    version="0.0.20",
+    version="0.0.21",
     license="GNU General Public License v2.0",
     author="Ali Can Gönüllü",
     author_email="alicangonullu@yahoo.com",
