@@ -17,6 +17,10 @@
 <img src="pic/wintest.png" />
 <h2>Installation</h2>
 <pre>
+  ------------------------------------------------------------------------------------------------
+  IMPORTANT : This program can CURRENTLY take a maximum of 2 GB memory image.
+  ÖNEMLİ : Bu program ŞU ANLIK maksimum 2 GB bellek imajı alabilmektedir.
+  ------------------------------------------------------------------------------------------------
   On CMD or PowerShell (Administrator)
   cd pymem_current_directory
   bcdedit /set testsigning on

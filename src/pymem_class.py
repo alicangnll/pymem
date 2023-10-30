@@ -12,19 +12,15 @@ def CTL_CODE(DeviceType, Function, Method, Access):
     
 CTRL_IOCTRL = CTL_CODE(0x22, 0x101, 3, 3) # IOCTL_SET_MODE
 INFO_IOCTRL = CTL_CODE(0x22, 0x103, 3, 3)
-INFO_IOCTRL_DEPRECATED = CTL_CODE(0x22, 0x100, 0, 3)
 IOCTL_REVERSE_SEARCH_QUERY = CTL_CODE(0x22, 0x104, 3, 3)
-runs = []
-memsize = c_longlong
 
 class PyMem:
-
     FIELDS = (["CR3", "NtBuildNumber", "KernBase", "KDBG"] +
               ["KPCR%02d" % i for i in range(32)] +
               ["PfnDataBase", "PsLoadedModuleList", "PsActiveProcessHead"] +
               ["Padding%s" % i for i in range(0xff)] +
               ["NumberOfRuns"])
-
+    
     def GetInfo(fd):
         result = win32file.DeviceIoControl(fd, INFO_IOCTRL, b"", 102400, None)
         fmt_string = "Q" * len(PyMem.FIELDS)
@@ -32,27 +28,8 @@ class PyMem:
         for k, v in sorted(memory_parameters.items()):
             if k.startswith("Pad"):
                 continue
-
             if not v: continue
-
             print("%s: \t%#08x (%s)" % (k, v, v))
-
-        print("Memory ranges:")
-        print("Start\t\tEnd\t\tLength")
-
-        for start, length in runs:
-            print("0x%X\t\t0x%X\t\t0x%X" % (start, start+length, length))
-
-    def ParseMemoryRuns(fd, buf_size):
-        result = win32file.DeviceIoControl(fd, INFO_IOCTRL, b"", buf_size, None)
-        fmt_string = "Q" * len(PyMem.FIELDS)
-        memory_parameters = dict(zip(PyMem.FIELDS, struct.unpack_from(fmt_string, result)))
-        PyMem.dtb = memory_parameters["CR3"]
-        PyMem.kdbg = memory_parameters["KDBG"]
-        offset = struct.calcsize(fmt_string)
-        for x in range(memory_parameters["NumberOfRuns"]):
-            start, length = struct.unpack_from("QQ", result, x * 16 + offset)
-            runs.append((start, length))
 
     def SetMode(fd, modeset = "pte"):
         try:
@@ -70,7 +47,7 @@ class PyMem:
             print(f"Mode has been set to {modeset}")
         except Exception as e:
             return str(e)
-        
+    
     def service_create():
         try:
             os.system(f"net stop winpmem")  # Stop any previous instance of the driver
@@ -108,7 +85,8 @@ class PyMem:
         except Exception as e:
             print("ERROR : WinPMEM can not created. Reason : " + str(e))
 
-    def dump_and_save_memory(filename, memsize = 1024 * 1024):
+    @staticmethod
+    def dump_and_save_memory(filename, memsize = int(1024 * 1024)):
         print("Creating AFF4 (Rekall) file")
         device_handle = win32file.CreateFile(
             "\\\\.\\pmem",
@@ -123,8 +101,8 @@ class PyMem:
             print("Error: open device failed.\n")
         else:
             PyMem.SetMode(device_handle)
-            PyMem.ParseMemoryRuns(device_handle, memsize)
             PyMem.GetInfo(device_handle)
+            print("\nMEMSIZE : " + str(memsize))
             with open(filename + ".aff", "wb") as f:
                 mem_addr = 0
                 while mem_addr < memsize:
