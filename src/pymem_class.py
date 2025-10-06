@@ -92,21 +92,42 @@ class PyMem:
         ]
         return safe_regions
 
+    @staticmethod
+    def _adaptive_chunk(base_bytes, max_size_bytes, min_bytes, max_bytes):
+        """Scale chunk size by total memory: <=8GB: 0.5x, 8-32GB: 1x, >=32GB: 2x.
+        Clamped between min_bytes and max_bytes.
+        """
+        try:
+            if max_size_bytes >= 32 * 1024 * 1024 * 1024:
+                scaled = base_bytes * 2
+            elif max_size_bytes <= 8 * 1024 * 1024 * 1024:
+                scaled = max(base_bytes // 2, min_bytes)
+            else:
+                scaled = base_bytes
+            return int(min(max(scaled, min_bytes), max_bytes))
+        except Exception:
+            return base_bytes
+
     def ScanMemoryRegions(fd, max_size=32*1024*1024*1024):
         """Scan memory regions more comprehensively to find all readable areas"""
         print("Scanning memory regions comprehensively...")
         safe_regions = []
-        chunk_size = 4 * 1024 * 1024  # 4MB chunks for faster scanning
+        chunk_size = PyMem._adaptive_chunk(
+            base_bytes=16 * 1024 * 1024,
+            max_size_bytes=max_size,
+            min_bytes=4 * 1024 * 1024,
+            max_bytes=64 * 1024 * 1024,
+        )
         current_addr = 0
         consecutive_failures = 0
-        max_consecutive_failures = 30  # Allow more failures before stopping
+        max_consecutive_failures = 50  # Allow more failures before stopping
         
         print(f"Scanning up to {max_size/1024/1024/1024:.2f} GB of memory...")
         print("=" * 50)
         
         while current_addr < max_size and consecutive_failures < max_consecutive_failures:
-            # Test if this region is readable
-            is_readable, _ = PyMem.TestMemoryRead(fd, current_addr, min(4096, chunk_size))
+            # Test if this region is readable with a small test first
+            is_readable, _ = PyMem.TestMemoryRead(fd, current_addr, 4096)
             
             if is_readable:
                 # Found a readable region, try to determine its size
@@ -114,7 +135,7 @@ class PyMem:
                 region_size = 0
                 
                 # Test different sizes to find the maximum readable chunk
-                test_sizes = [chunk_size, chunk_size//2, chunk_size//4, 1024*1024, 256*1024, 64*1024]
+                test_sizes = [chunk_size, chunk_size//2, chunk_size//4, 8*1024*1024, 2*1024*1024, 1024*1024]
                 
                 for test_size in test_sizes:
                     if test_size > max_size - current_addr:
@@ -138,17 +159,25 @@ class PyMem:
                     current_addr += chunk_size
                     consecutive_failures += 1
             else:
-                # Skip this region
-                current_addr += chunk_size
+                # Skip this region with adaptive jumping
+                if consecutive_failures < 5:
+                    # Small jumps for first few failures
+                    current_addr += chunk_size
+                elif consecutive_failures < 15:
+                    # Medium jumps for moderate failures
+                    current_addr += chunk_size * 2
+                else:
+                    # Large jumps for many consecutive failures
+                    current_addr += chunk_size * 4
                 consecutive_failures += 1
                 
-            # Progress update every 500MB with percentage and visual bar
-            if not int(current_addr / 1024 / 1024 / 512) % 1:
+            # Progress update every 1GB with percentage and visual bar
+            if not int(current_addr / 1024 / 1024 / 1024) % 1:
                 progress_percent = (current_addr / max_size) * 100
                 bar_length = 30
                 filled_length = int(bar_length * current_addr // max_size)
                 bar = '█' * filled_length + '░' * (bar_length - filled_length)
-                print(f"Scan progress: [{bar}] {progress_percent:.1f}% ({current_addr / 1024 / 1024:.0f} MB)")
+                print(f"Scan progress: [{bar}] {progress_percent:.1f}% ({current_addr / 1024 / 1024 / 1024:.1f} GB)")
         
         print(f"Memory scan completed. Found {len(safe_regions)} safe regions")
         total_safe_size = sum(region[1] for region in safe_regions)
@@ -160,7 +189,12 @@ class PyMem:
         """More aggressive memory scanning to find all possible readable regions"""
         print("Performing aggressive memory scan...")
         safe_regions = []
-        chunk_size = 8 * 1024 * 1024  # 8MB chunks for faster aggressive scanning
+        chunk_size = PyMem._adaptive_chunk(
+            base_bytes=8 * 1024 * 1024,
+            max_size_bytes=max_size,
+            min_bytes=2 * 1024 * 1024,
+            max_bytes=32 * 1024 * 1024,
+        )
         current_addr = 0
         consecutive_failures = 0
         max_consecutive_failures = 100  # Allow many more failures
@@ -215,13 +249,18 @@ class PyMem:
         return safe_regions
 
     def FastMemoryScan(fd, max_size=32*1024*1024*1024):
-        """Very fast memory scanning using large chunks"""
+        """Very fast memory scanning using large chunks with smart jumping"""
         print("Performing fast memory scan...")
         safe_regions = []
-        chunk_size = 32 * 1024 * 1024  # 32MB chunks for very fast scanning
+        chunk_size = PyMem._adaptive_chunk(
+            base_bytes=64 * 1024 * 1024,
+            max_size_bytes=max_size,
+            min_bytes=16 * 1024 * 1024,
+            max_bytes=256 * 1024 * 1024,
+        )
         current_addr = 0
         consecutive_failures = 0
-        max_consecutive_failures = 200  # Allow many failures
+        max_consecutive_failures = 100  # Allow many failures
         
         print(f"Fast scanning up to {max_size/1024/1024/1024:.2f} GB of memory...")
         
@@ -231,7 +270,7 @@ class PyMem:
             region_size = 0
             
             # Try only large chunks for speed
-            test_sizes = [chunk_size, chunk_size//2, 8*1024*1024, 2*1024*1024]
+            test_sizes = [chunk_size, chunk_size//2, 16*1024*1024, 4*1024*1024]
             
             for test_size in test_sizes:
                 if test_size > max_size - current_addr:
@@ -254,12 +293,17 @@ class PyMem:
                 current_addr += region_size
                 consecutive_failures = 0
             else:
-                # Skip this region
-                current_addr += chunk_size
+                # Smart jumping based on failure count
+                if consecutive_failures < 3:
+                    current_addr += chunk_size
+                elif consecutive_failures < 10:
+                    current_addr += chunk_size * 2
+                else:
+                    current_addr += chunk_size * 4
                 consecutive_failures += 1
                 
-            # Progress update every 1GB with percentage and visual bar
-            if not int(current_addr / 1024 / 1024 / 1024) % 1:
+            # Progress update every 2GB with percentage and visual bar
+            if not int(current_addr / 1024 / 1024 / 1024 / 2) % 1:
                 progress_percent = (current_addr / max_size) * 100
                 bar_length = 30
                 filled_length = int(bar_length * current_addr // max_size)
@@ -269,6 +313,166 @@ class PyMem:
         print(f"Fast scan completed. Found {len(safe_regions)} readable regions")
         total_readable_size = sum(region[1] for region in safe_regions)
         print(f"Total readable memory: {total_readable_size / 1024 / 1024:.2f} MB")
+        
+        return safe_regions
+
+    def UltraFastMemoryScan(fd, max_size=32*1024*1024*1024):
+        """Ultra-fast memory scanning using very large chunks and smart jumping"""
+        print("Performing ultra-fast memory scan...")
+        safe_regions = []
+        chunk_size = PyMem._adaptive_chunk(
+            base_bytes=128 * 1024 * 1024,
+            max_size_bytes=max_size,
+            min_bytes=32 * 1024 * 1024,
+            max_bytes=512 * 1024 * 1024,
+        )
+        current_addr = 0
+        consecutive_failures = 0
+        max_consecutive_failures = 50  # Allow many failures
+        
+        print(f"Ultra-fast scanning up to {max_size/1024/1024/1024:.2f} GB of memory...")
+        
+        while current_addr < max_size and consecutive_failures < max_consecutive_failures:
+            # Try to read this region
+            region_start = current_addr
+            region_size = 0
+            
+            # Try only very large chunks for maximum speed
+            test_sizes = [chunk_size, chunk_size//2, 32*1024*1024, 8*1024*1024]
+            
+            for test_size in test_sizes:
+                if test_size > max_size - current_addr:
+                    test_size = max_size - current_addr
+                if test_size < 2*1024*1024:  # Minimum 2MB
+                    break
+                    
+                try:
+                    win32file.SetFilePointer(fd, current_addr, 0)
+                    data = win32file.ReadFile(fd, test_size)[1]
+                    if len(data) > 0:  # Accept any data
+                        region_size = len(data)
+                        break
+                except:
+                    continue
+            
+            if region_size > 0:
+                safe_regions.append((region_start, region_size))
+                print(f"Ultra-fast region: 0x{region_start:016x} - 0x{region_start + region_size:016x} ({region_size/1024/1024:.2f} MB)")
+                current_addr += region_size
+                consecutive_failures = 0
+            else:
+                # Very aggressive jumping for speed
+                if consecutive_failures < 2:
+                    current_addr += chunk_size
+                elif consecutive_failures < 5:
+                    current_addr += chunk_size * 2
+                else:
+                    current_addr += chunk_size * 4
+                consecutive_failures += 1
+                
+            # Progress update every 4GB with percentage and visual bar
+            if not int(current_addr / 1024 / 1024 / 1024 / 4) % 1:
+                progress_percent = (current_addr / max_size) * 100
+                bar_length = 30
+                filled_length = int(bar_length * current_addr // max_size)
+                bar = '█' * filled_length + '░' * (bar_length - filled_length)
+                print(f"Ultra-fast: [{bar}] {progress_percent:.1f}% ({current_addr / 1024 / 1024 / 1024:.1f} GB)")
+        
+        print(f"Ultra-fast scan completed. Found {len(safe_regions)} readable regions")
+        total_readable_size = sum(region[1] for region in safe_regions)
+        print(f"Total readable memory: {total_readable_size / 1024 / 1024:.2f} MB")
+        
+        return safe_regions
+
+    def SmartMemoryScan(fd, max_size=32*1024*1024*1024):
+        """Smart memory scanning that skips known problematic regions"""
+        print("Performing smart memory scan...")
+        safe_regions = []
+        chunk_size = PyMem._adaptive_chunk(
+            base_bytes=32 * 1024 * 1024,
+            max_size_bytes=max_size,
+            min_bytes=8 * 1024 * 1024,
+            max_bytes=128 * 1024 * 1024,
+        )
+        current_addr = 0
+        consecutive_failures = 0
+        max_consecutive_failures = 100
+        
+        # Known problematic memory regions to skip
+        skip_regions = [
+            (0x100000000, 0x200000000),  # Common MMIO region
+            (0x80000000, 0x90000000),    # Another common MMIO region
+            (0xC0000000, 0xD0000000),    # PCI configuration space
+        ]
+        
+        print(f"Smart scanning up to {max_size/1024/1024/1024:.2f} GB of memory...")
+        
+        while current_addr < max_size and consecutive_failures < max_consecutive_failures:
+            # Check if we're in a known problematic region
+            skip_region = False
+            for skip_start, skip_end in skip_regions:
+                if skip_start <= current_addr < skip_end:
+                    print(f"Skipping known problematic region: 0x{current_addr:016x} - 0x{skip_end:016x}")
+                    current_addr = skip_end
+                    skip_region = True
+                    break
+            
+            if skip_region:
+                continue
+            
+            # Test if this region is readable
+            is_readable, _ = PyMem.TestMemoryRead(fd, current_addr, 4096)
+            
+            if is_readable:
+                # Found a readable region, try to determine its size
+                region_start = current_addr
+                region_size = 0
+                
+                # Test different sizes to find the maximum readable chunk
+                test_sizes = [chunk_size, chunk_size//2, chunk_size//4, 8*1024*1024, 2*1024*1024]
+                
+                for test_size in test_sizes:
+                    if test_size > max_size - current_addr:
+                        test_size = max_size - current_addr
+                    
+                    try:
+                        win32file.SetFilePointer(fd, current_addr, 0)
+                        data = win32file.ReadFile(fd, test_size)[1]
+                        if len(data) == test_size:
+                            region_size = test_size
+                            break
+                    except:
+                        continue
+                
+                if region_size > 0:
+                    safe_regions.append((region_start, region_size))
+                    print(f"Smart region: 0x{region_start:016x} - 0x{region_start + region_size:016x} ({region_size/1024/1024:.2f} MB)")
+                    current_addr += region_size
+                    consecutive_failures = 0
+                else:
+                    current_addr += chunk_size
+                    consecutive_failures += 1
+            else:
+                # Skip this region with adaptive jumping
+                if consecutive_failures < 5:
+                    current_addr += chunk_size
+                elif consecutive_failures < 15:
+                    current_addr += chunk_size * 2
+                else:
+                    current_addr += chunk_size * 4
+                consecutive_failures += 1
+                
+            # Progress update every 1GB
+            if not int(current_addr / 1024 / 1024 / 1024) % 1:
+                progress_percent = (current_addr / max_size) * 100
+                bar_length = 30
+                filled_length = int(bar_length * current_addr // max_size)
+                bar = '█' * filled_length + '░' * (bar_length - filled_length)
+                print(f"Smart scan: [{bar}] {progress_percent:.1f}% ({current_addr / 1024 / 1024 / 1024:.1f} GB)")
+        
+        print(f"Smart scan completed. Found {len(safe_regions)} safe regions")
+        total_safe_size = sum(region[1] for region in safe_regions)
+        print(f"Total safe memory: {total_safe_size / 1024 / 1024:.2f} MB")
         
         return safe_regions
 
@@ -336,7 +540,7 @@ class PyMem:
             print("ERROR : WinPMEM can not created. Reason : " + str(e))
 
     @staticmethod
-    def dump_and_save_memory(filename, memsize = None):
+    def dump_and_save_memory(filename, memsize = None, scan_strategy = None):
         # Auto-detect RAM size if not provided
         if memsize is None:
             print("Auto-detecting system RAM size...")
@@ -375,22 +579,47 @@ class PyMem:
             # Get memory runs to identify readable regions
             print("\nDetecting readable memory regions...")
             memory_runs = PyMem.GetMemoryRuns(device_handle)
-            
+
+            # Optional: honor preferred scan strategy first
+            if not memory_runs and scan_strategy:
+                strategy = scan_strategy.lower()
+                print(f"Preferred scan strategy: {strategy}")
+                if strategy in ("smart", "auto"):
+                    memory_runs = PyMem.SmartMemoryScan(device_handle, memsize)
+                elif strategy in ("comprehensive", "scan"):
+                    memory_runs = PyMem.ScanMemoryRegions(device_handle, memsize)
+                elif strategy == "aggressive":
+                    memory_runs = PyMem.AggressiveMemoryScan(device_handle, memsize)
+                elif strategy == "fast":
+                    memory_runs = PyMem.FastMemoryScan(device_handle, memsize)
+                elif strategy in ("ultrafast", "ultra", "ufast"):
+                    memory_runs = PyMem.UltraFastMemoryScan(device_handle, memsize)
+                else:
+                    print(f"Unknown scan strategy '{scan_strategy}', falling back to auto.")
+
             if not memory_runs:
-                print("No valid memory runs found. Performing comprehensive memory scan...")
-                memory_runs = PyMem.ScanMemoryRegions(device_handle, memsize)
+                print("No valid memory runs found. Trying smart memory scan...")
+                memory_runs = PyMem.SmartMemoryScan(device_handle, memsize)
                 
                 if not memory_runs:
-                    print("No safe memory regions found. Trying aggressive scan...")
-                    memory_runs = PyMem.AggressiveMemoryScan(device_handle, memsize)
+                    print("No safe memory regions found. Trying comprehensive scan...")
+                    memory_runs = PyMem.ScanMemoryRegions(device_handle, memsize)
                     
                     if not memory_runs:
-                        print("No readable memory found. Trying fast scan...")
-                        memory_runs = PyMem.FastMemoryScan(device_handle, memsize)
+                        print("No readable memory found. Trying aggressive scan...")
+                        memory_runs = PyMem.AggressiveMemoryScan(device_handle, memsize)
                         
                         if not memory_runs:
-                            print("No readable memory found. Aborting dump to prevent system crash.")
-                            return
+                            print("No readable memory found. Trying fast scan...")
+                            memory_runs = PyMem.FastMemoryScan(device_handle, memsize)
+                            
+                            if not memory_runs:
+                                print("No readable memory found. Trying ultra-fast scan...")
+                                memory_runs = PyMem.UltraFastMemoryScan(device_handle, memsize)
+                                
+                                if not memory_runs:
+                                    print("No readable memory found. Aborting dump to prevent system crash.")
+                                    return
             
             print(f"\nTotal memory runs: {len(memory_runs)}")
             total_readable_size = sum(run[1] for run in memory_runs)
@@ -399,7 +628,8 @@ class PyMem:
             # Sort memory runs by start address for Volatility compatibility
             memory_runs.sort(key=lambda x: x[0])
             
-            # Create raw memory dump file
+            # Create raw memory dump file. We seek to each physical start address
+            # so the file layout matches physical memory offsets (Volatility-friendly).
             with open(filename + ".raw", "wb") as f:
                 total_dumped = 0
                 current_offset = 0
@@ -407,14 +637,23 @@ class PyMem:
                 for i, (start_addr, length) in enumerate(memory_runs):
                     print(f"\nProcessing run {i+1}/{len(memory_runs)}: 0x{start_addr:016x} - 0x{start_addr + length:016x}")
                     
-                    # Balanced reading with reasonable chunks
-                    chunk_size = min(1024 * 1024, length)  # 1MB chunks - good balance of speed and safety
+                    # Balanced reading with adaptive chunks by RAM size
+                    read_chunk = PyMem._adaptive_chunk(
+                        base_bytes=1 * 1024 * 1024,
+                        max_size_bytes=memsize,
+                        min_bytes=512 * 1024,
+                        max_bytes=8 * 1024 * 1024,
+                    )
+                    chunk_size = min(read_chunk, length)
                     current_addr = start_addr
                     remaining = length
                     consecutive_errors = 0
                     max_consecutive_errors = 5  # Reasonable error limit
                     
                     print(f"Reading region in 1MB chunks...")
+
+                    # Ensure file offset equals physical start address; gaps auto-zero-fill
+                    f.seek(start_addr)
                     
                     while remaining > 0 and consecutive_errors < max_consecutive_errors:
                         read_size = min(chunk_size, remaining)
