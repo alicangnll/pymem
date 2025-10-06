@@ -5,15 +5,26 @@ A Python-based Windows memory acquisition tool that creates Volatility-compatibl
 ## Key Features
 
 - **Volatility Compatible**: Creates raw memory dumps that work directly with Volatility 2/3
-- **Smart Memory Scanning**: Multiple scan strategies (smart, fast, ultra-fast) with adaptive chunk sizing
-- **MMIO Region Skipping**: Automatically skips known problematic memory regions
-- **Large Memory Support**: Handles systems with 32GB+ RAM efficiently
-- **Progress Tracking**: Real-time progress bars and detailed logging
-- **CLI Interface**: Command-line options for scan strategy and output control
+- **Multiple WinPMEM Modes**: Auto-tests PTE, Physical, and I/O Space modes for maximum compatibility
+- **Smart Memory Scanning**: 6 different scan strategies with adaptive chunk sizing based on RAM size
+- **MMIO Region Skipping**: Automatically skips known problematic memory regions (PCI, graphics MMIO)
+- **Large Memory Support**: Handles systems with 32GB+ RAM efficiently with RAM-adaptive chunk sizing
+- **Progress Tracking**: Real-time progress bars with visual indicators and detailed logging
+- **CLI Interface**: Command-line options for scan strategy, filename, and memory size control
+- **Safety Features**: Memory safety testing, error handling, and consecutive error limits
+- **Metadata Generation**: Creates JSON metadata and Volatility command reference files
 
 ## How It Works
 
-PyMem automatically detects your system's RAM size and uses adaptive chunk sizing based on total memory. It employs multiple scanning strategies to find readable memory regions, skipping known problematic areas like MMIO regions. The tool creates a raw memory dump with physical memory layout preserved for Volatility analysis.
+PyMem automatically detects your system's RAM size and uses adaptive chunk sizing based on total memory. The tool:
+
+1. **Driver Management**: Creates and manages the WinPMEM kernel driver service
+2. **Mode Testing**: Tests multiple WinPMEM modes (PTE, Physical, I/O Space) for compatibility
+3. **Memory Discovery**: Uses driver memory runs or falls back to intelligent scanning
+4. **Smart Scanning**: 6 different strategies with adaptive chunk sizes (≤8GB: 0.5x, 8-32GB: 1x, ≥32GB: 2x)
+5. **MMIO Avoidance**: Skips known problematic regions (PCI config space, graphics MMIO)
+6. **Physical Layout**: Creates raw dumps with physical memory offsets preserved for Volatility
+7. **Metadata Generation**: Produces JSON metadata and analysis command references
 
 ## Compatible Analysis Tools
 
@@ -97,13 +108,16 @@ python example.py --scan aggressive --filename aggressive_dump
 
 ### Available Scan Strategies
 
-| Strategy | Use Case | Speed | Coverage | Best For |
-|----------|----------|-------|----------|----------|
-| `smart` | Default choice | Fast | High | Most systems |
-| `fast` | Large systems | Very Fast | Good | 16GB+ RAM |
-| `ultrafast` | Very large systems | Fastest | Good | 32GB+ RAM |
-| `comprehensive` | Thorough analysis | Slow | Highest | Critical analysis |
-| `aggressive` | Problematic systems | Medium | Very High | Troubleshooting |
+| Strategy | Chunk Size | Use Case | Speed | Coverage | Best For |
+|----------|------------|----------|-------|----------|----------|
+| `smart` | 32MB (adaptive) | Default choice, skips MMIO | Fast | High | Most systems |
+| `comprehensive` | 16MB (adaptive) | Thorough analysis | Slow | Highest | Critical analysis |
+| `aggressive` | 8MB (adaptive) | Problematic systems | Medium | Very High | Troubleshooting |
+| `fast` | 64MB (adaptive) | Large systems | Very Fast | Good | 16GB+ RAM |
+| `ultrafast` | 128MB (adaptive) | Very large systems | Fastest | Good | 32GB+ RAM |
+| `auto` | Dynamic | Tries smart first, falls back | Variable | High | Default choice |
+
+**Note**: All strategies use adaptive chunk sizing based on total RAM size (≤8GB: 0.5x, 8-32GB: 1x, ≥32GB: 2x)
 
 ## Output Files
 
@@ -111,8 +125,26 @@ python example.py --scan aggressive --filename aggressive_dump
 - **`filename_metadata.json`**: Memory runs and system information
 - **`filename_volatility_info.txt`**: Volatility commands and analysis guide
 
-## Performance Notes
+## Technical Details
 
+### WinPMEM Modes
+- **PTE Mode**: Page Table Entry mode (default, most compatible)
+- **Physical Mode**: Direct physical memory access
+- **I/O Space Mode**: I/O space memory mapping
+- **Auto-Testing**: Tool tests all modes and uses the first successful one
+
+### Adaptive Chunk Sizing
+- **≤8GB RAM**: 0.5x base chunk size (more conservative)
+- **8-32GB RAM**: 1x base chunk size (balanced)
+- **≥32GB RAM**: 2x base chunk size (optimized for large systems)
+
+### Memory Region Handling
+- **Driver Runs**: Uses WinPMEM driver's memory run information when available
+- **Smart Scanning**: Skips known MMIO regions (PCI config, graphics memory)
+- **Adaptive Jumping**: Increases jump size after consecutive failures
+- **Error Limits**: Stops after 5-100 consecutive errors (strategy-dependent)
+
+### Performance Notes
 - **32GB+ Systems**: Use `--scan ultrafast` for best performance
 - **Memory Compression**: Disable with `Disable-MMAgent -mc` for better results
 - **Disk Space**: Ensure 1.5x RAM size free space (e.g., 48GB for 32GB RAM)
@@ -144,18 +176,36 @@ vol -f memory_dump.raw windows.cmdline
 ```python
 from src.pymem_class import PyMem
 
-# Create service and dump with smart scan
+# Basic usage - create service and dump
 PyMem.service_create()
-PyMem.dump_and_save_memory("my_dump", scan_strategy="smart")
+PyMem.dump_and_save_memory("my_dump")
 
-# Dump with custom memory size
-PyMem.dump_and_save_memory("limited_dump", 
-                          memsize=4*1024*1024*1024,  # 4GB
+# Advanced usage with custom parameters
+PyMem.dump_and_save_memory("custom_dump", 
+                          memsize=4*1024*1024*1024,  # 4GB limit
                           scan_strategy="fast")
 
-# Volatility-compatible dump
-PyMem.dump_volatility_compatible("vol_dump")
+# Pre-configured methods
+PyMem.dump_volatility_compatible("vol_dump")  # Volatility-optimized
+PyMem.dump_full_memory("full_dump")           # Full system memory
+PyMem.test_memory_safety("test", 100*1024*1024)  # 100MB test dump
+
+# Direct memory scanning (advanced)
+device_handle = win32file.CreateFile("\\\\.\\pmem", ...)
+runs = PyMem.SmartMemoryScan(device_handle, 8*1024*1024*1024)
+runs = PyMem.FastMemoryScan(device_handle, 16*1024*1024*1024)
+runs = PyMem.UltraFastMemoryScan(device_handle, 32*1024*1024*1024)
 ```
+
+### Available Methods
+
+- `service_create()`: Initialize WinPMEM driver service
+- `dump_and_save_memory(filename, memsize, scan_strategy)`: Main dump function
+- `dump_volatility_compatible(filename)`: Volatility-optimized dump
+- `dump_full_memory(filename)`: Full system memory dump
+- `test_memory_safety(filename, test_size)`: Small test dump for safety
+- `GetSystemRAMSize()`: Auto-detect system RAM
+- `SmartMemoryScan()`, `FastMemoryScan()`, `UltraFastMemoryScan()`: Direct scanning
 
 ## Troubleshooting
 
@@ -164,15 +214,23 @@ PyMem.dump_volatility_compatible("vol_dump")
 1. **"Driver file not found"**: Ensure `winpmem_x64.sys` or `winpmem_x86.sys` is in the project directory
 2. **"Access denied"**: Run as Administrator
 3. **"Test signing not enabled"**: Run `bcdedit /set testsigning on` and restart
-4. **Slow scanning**: Try `--scan ultrafast` for large systems
+4. **Slow scanning**: Try `--scan ultrafast` for large systems (32GB+)
 5. **Memory compression issues**: Disable with `Disable-MMAgent -mc`
+6. **"No memory runs found"**: Normal fallback to scanning strategies
+7. **Mode failures**: Tool auto-tries PTE → Physical → I/O Space modes
+8. **Consecutive errors**: Tool skips problematic regions automatically
+9. **Large file sizes**: Use NTFS (not FAT32) for files >4GB
 
 ### Performance Optimization
 
-- Use SSD storage for faster I/O
-- Disable Windows Defender real-time protection during acquisition
-- Close unnecessary applications to free memory
-- Use `--scan ultrafast` for systems with 32GB+ RAM
+- **Storage**: Use SSD storage for faster I/O
+- **Antivirus**: Disable Windows Defender real-time protection during acquisition
+- **Memory**: Close unnecessary applications to free memory
+- **Scan Strategy**: Use `--scan ultrafast` for systems with 32GB+ RAM
+- **Memory Compression**: Disable with `Disable-MMAgent -mc` for better performance
+- **Chunk Sizing**: Tool automatically adapts chunk sizes based on RAM size
+- **MMIO Skipping**: Smart scan automatically skips problematic regions
+- **Error Handling**: Tool uses consecutive error limits to avoid infinite loops
 
 ## Disclaimer
 
