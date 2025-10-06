@@ -7,4 +7,6 @@ if __name__ == "__main__":
     # Check Memory Compression with "Get-MMAgent" command
     # Disable Memory Compression with "Disable-MMAgent -mc" command
     # Restart computer
-    PyMem.dump_and_save_memory("demo", int(1024 * 1024 * 1024))
+    
+    # Auto-detect RAM size and dump full memory
+    PyMem.dump_full_memory("full_memory_dump")
