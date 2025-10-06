@@ -9,4 +9,4 @@ if __name__ == "__main__":
     # Restart computer
     
     # Auto-detect RAM size and dump full memory
-    PyMem.dump_full_memory("full_memory_dump")
+    PyMem.dump_volatility_compatible("volatility_memory_dump")
